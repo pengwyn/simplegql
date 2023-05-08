@@ -212,6 +212,9 @@ Long-term TODOs:
   configuration. The purpose is to allow a program to start/stop a server
   without leaking memory. Must avoid unnecessary Arc+Mutex on every resolver
   call.
+- Implement the filter feature fully using backend-specific option and a
+  fallback to post-query filtering.
+- Examples for the different directives and hooks.
 
 ## License
 
