@@ -9,8 +9,8 @@ use std::collections::HashMap;
 // const id_sql_kind = "INTEGER";
 // const id_sql_column_def = "AUTOINCREMENT";
 type IDType = String;
-const id_sql_kind: &str = "TEXT";
-const id_sql_column_def: &str = "DEFAULT (lower(hex(randomblob(16))))";
+const ID_SQL_KIND: &str = "TEXT";
+const ID_SQL_COLUMN_DEF: &str = "DEFAULT (lower(hex(randomblob(16))))";
 // pub fn id_to_sqlite(id: IDType) -> sqlite::Value {
 //     sqlite::Value::Integer(id as i64)
 // }
@@ -57,26 +57,6 @@ impl SqliteDB {
 
 }
     
-
-// fn _is_matching_type_gql(val: gql::Value, required: GQLValueType) -> bool {
-//     match required {
-//         // GQLValueType::Null => if let gql::Value::Null = val { return true },
-//         GQLValueType::Float => if let gql::Value::Number(num) = val { return num.is_f64() },
-//         GQLValueType::Integer => if let gql::Value::Number(num) = val { return num.is_i64() },
-//         GQLValueType::String => if let gql::Value::String(_) = val { return true },
-//         GQLValueType::Boolean => if let gql::Value::Boolean(_) = val { return true },
-//         // GQLValueType::Binary => if let gql::Value::Binary(_) = val { return true },
-//         // GQLValueType::Enum => if let gql::Value::Enum(_) = val { return true },
-//         // GQLValueType::List => if let gql::Value::List(_) = val { return true },
-//         // GQLValueType::Object => if let gql::Value::Object(_) = val { return true },
-//         GQLValueType::NamedType(_) => panic!("Not yet"),
-//         GQLValueType::Object(_) => panic!("Should never get here"),
-//         GQLValueType::CustomScalar(_) => panic!("Should never get here"),
-//         // This doesn't check the valid enum options
-//         GQLValueType::Enum(_) => if let gql::Value::String(_) = val { return true },
-//     }
-//     return false;
-// }
 
 fn convert_sqlite_value(val: sqlite::Value, required: &GQLValueType) -> ResultAll<gql::Value> {
     match val {
@@ -129,24 +109,7 @@ fn sqlite_type(kind: &GQLValueType, api: &parsing::APIDefinition) -> Option<Stri
     }
 }
 
-// fn convert_gql_value(val_accessor: gqld::ValueAccessor, required: &GQLValueType) -> gql::Result<sqlite::Value> {
-//     match required {
-//         GQLValueType::Float => val_accessor.f64().map(|x| x.into()),
-//         GQLValueType::Integer => val_accessor.i64().map(|x| x.into()),
-//         GQLValueType::String => val_accessor.string().map(|x| x.into()),
-//         GQLValueType::Boolean => val_accessor.boolean().map(|x| (x as i64).into()),
-//         GQLValueType::NamedType(_) => panic!("Not yet"),
-//         GQLValueType::Object(_) => panic!("Should never get here"),
-//         GQLValueType::CustomScalar(_) => panic!("TODO"),
-//         // TODO: This doesn't validate against the allowed enum options
-//         GQLValueType::Enum(_) => val_accessor
-//             .enum_name()
-//             // .or_else(|_| val_accessor.string()
-//                 // .or_else(|_| Err("Not a valid enum or string")?))
-//             .map(|x| x.into()),
-//     }
-// }
-fn convert_gql_value2(val: gql::Value, required: &GQLValueType) -> gql::Result<sqlite::Value> {
+fn convert_gql_value(val: gql::Value, required: &GQLValueType) -> gql::Result<sqlite::Value> {
     if let gql::Value::Null = val {
         return Ok(sqlite::Value::Null);
     }

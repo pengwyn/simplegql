@@ -96,7 +96,7 @@ pub fn create_obj(
             _ => continue,
         };
 
-        if let GQLValueType::Object(target_name) = &field.typ.kind {
+        if let GQLValueType::Object(_) = &field.typ.kind {
             create_obj_links(field, gql_field, &obj_ref, db, sch_obj, api)?;
         } else if field.is_list() {
             create_obj_scalar_list(field, gql_field, &obj_ref, db, sch_obj, api)?;
@@ -118,14 +118,14 @@ pub fn create_obj_basic_fields(
     input_fields: &mut ObjectHashMap,
     db: &'static SqliteDB,
     sch_obj: &'static parsing::Type,
-    api: &'static parsing::APIDefinition,
+    _api: &'static parsing::APIDefinition,
 ) -> gql::Result<ObjectRefCached>
 {
     let mut col_names = Vec::new();
     let mut col_val_ids = Vec::new();
     let mut col_vals = Vec::new();
     if let Some(gql_val) = input_fields.remove("id") {
-        let sqlite_val = convert_gql_value2(gql_val, &IDType::internal_type())?;
+        let sqlite_val = convert_gql_value(gql_val, &IDType::internal_type())?;
         col_names.push("\"id\"".into());
         col_val_ids.push(":id".into());
         col_vals.push(sqlite_val);
@@ -155,7 +155,7 @@ pub fn create_obj_basic_fields(
                 // Note: might have to change if we want to cache the statement itself.
                 continue;
             },
-            Some(gql_val_accessor) => convert_gql_value2(gql_val_accessor, &field.typ.kind)?
+            Some(gql_val_accessor) => convert_gql_value(gql_val_accessor, &field.typ.kind)?
         };
 
         // TODO lists
@@ -302,7 +302,7 @@ pub fn create_obj_scalar_list(
     obj_ref: &ObjectRefCached,
     db: &'static SqliteDB,
     sch_obj: &'static parsing::Type,
-    api: &'static parsing::APIDefinition,
+    _api: &'static parsing::APIDefinition,
 ) -> gql::Result<()>
 {
     let gql_list = match gql_field {
@@ -323,7 +323,7 @@ pub fn create_obj_scalar_list(
             GQLValueType::Object(_) => panic!("Shouldn't get here"),
             GQLValueType::NamedType(_) => panic!("Shouldn't get here"),
             _ => {
-                convert_gql_value2(gql_val, &field.typ.kind)?
+                convert_gql_value(gql_val, &field.typ.kind)?
             }
         };
 
@@ -374,7 +374,7 @@ pub fn sql_clear_object_non_scalar(
     obj_refs: &Vec<ObjectRefCached>,
     db: &'static SqliteDB,
     sch_obj: &'static parsing::Type,
-    api: &'static parsing::APIDefinition,
+    _api: &'static parsing::APIDefinition,
 ) -> gql::Result<()> {
     let table_name = if let GQLValueType::Object(target_name) = &field.typ.kind {
         if let Some(src_field_name) = &field.incoming_source_name {

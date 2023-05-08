@@ -1,7 +1,3 @@
-// This will be hardcoded for sqlite for now.
-
-use gql::dynamic::ValueAccessor;
-
 use crate::utils::*;
 
 use crate::parsing;
@@ -194,10 +190,6 @@ pub struct ObjectRef<ID> {
 }
 
 
-// fn to_value(va: &gql::ValueAccessor) -> gql::Value {
-//     va.
-// }
-
 impl GQLValueTypeAnnotated {
     fn as_typeref_with_given_string(&self, s: String) -> gqld::TypeRef {
         let typeref = match (self.is_list, self.is_nn, self.is_inner_nn) {
@@ -268,17 +260,16 @@ impl GQLValueTypeAnnotated {
 //                                 Functions                                 //
 ///////////////////////////////////////////////////////////////////////////////
 
-pub fn resolver_filter_list<'a, ID: CanBeID, Ref: SS>(ctx: gqld::ResolverContext<'a>, backend_fn: &'static FilterListHandlerFn<ID, Ref>) -> gqld::FieldFuture<'a> {
+pub fn resolver_filter_list<'a, ID: CanBeID, Ref: SS>(ctx: gqld::ResolverContext<'a>, _backend_fn: &'static FilterListHandlerFn<ID, Ref>) -> gqld::FieldFuture<'a> {
     gqld::FieldFuture::new(async move {
-        // let v: Vec<gqld::FieldValue> = Vec::new();
-        // Ok(Some(gqld::FieldValue::list(v)))
+        // TODO: pass to backend func and implement that
         let l: Result<Vec<_>, _> = ctx.parent_value.as_list().expect("Should have list")
             .iter()
             .map(|f| f.try_downcast_ref::<Ref>())
             .collect();
         let l = l?
             .into_iter()
-                 .map(|x| gqld::FieldValue::owned_any(x.to_owned()));
+            .map(|x| gqld::FieldValue::owned_any(x.to_owned()));
         Ok(Some(gqld::FieldValue::list(l)))
     })
 }

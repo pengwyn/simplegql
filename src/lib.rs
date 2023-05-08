@@ -1,5 +1,4 @@
 use std::{
-    error::Error,
     net::{IpAddr, Ipv4Addr},
     collections::HashMap,
 };
@@ -291,7 +290,9 @@ impl<'a> TransactionWrapper<'a> {
 
 impl<'a> Drop for TransactionWrapper<'a> {
     fn drop(&mut self) {
-        (self.data.transaction_stop)(self.was_success);
+        if let Err(e) = (self.data.transaction_stop)(self.was_success) {
+            eprintln!("Was an error while calling transaction_stop, ignoring: {:?}", e); 
+        }
     }
 }
     
@@ -303,13 +304,11 @@ use serde::Deserialize;
 struct ExpectedClaims {
     pub permissions: Vec<String>,
 }
-// type ExpectedClaims = serde_json::Value;
 
-// use std::sync::{Arc, Mutex};
 use tokio::sync::{Mutex};
-static global_jwk: Mutex<Option<jwk::JwkSet>> = Mutex::const_new(None);
+static GLOBAL_JWK: Mutex<Option<jwk::JwkSet>> = Mutex::const_new(None);
 async fn get_jwks(url: &str) -> ResultAll<jwk::JwkSet> {
-    let mut locked = global_jwk.lock().await;
+    let mut locked = GLOBAL_JWK.lock().await;
     if let Some(jwk) = locked.clone() {
         // println!("Reusing old jwks");
         return Ok(jwk);

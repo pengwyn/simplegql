@@ -7,8 +7,6 @@ pub use async_graphql::{
     self as gql,
     dynamic as gqld,
 };
-use gql::dynamic::ValueAccessor;
-
 
 #[derive(Debug)]
 pub struct SimpleGQLError {

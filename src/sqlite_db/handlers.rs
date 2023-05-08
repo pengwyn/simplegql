@@ -7,7 +7,6 @@ pub use utils::read_id;
 use crate::parsing::GQLIndexMap;
 
 use std::iter::zip;
-use gql::indexmap::IndexMap;
 
 type FieldResultSQL = FieldResult<ObjectRefCached>;
 
@@ -49,9 +48,9 @@ impl IDTrait<IDType> for ObjectRefCached {
 pub fn handler_field_scalar<'a>(
     db: &'static SqliteDB,
     sch_field: &'static parsing::Field,
-    sch_type: &'static parsing::Type,
+    _sch_type: &'static parsing::Type,
     obj_ref: &ObjectRefCached,
-    ctx: gqld::ResolverContext<'a>,
+    _ctx: gqld::ResolverContext<'a>,
 ) -> gql::Result<Option<FieldResultSQL>>
 {
     // println!("Handling field {} on type {}", sch_field.name, sch_type.name);
@@ -89,7 +88,7 @@ pub fn handler_field_scalar_list<'a>(
     sch_field: &'static parsing::Field,
     sch_type: &'static parsing::Type,
     obj_ref: &ObjectRefCached,
-    ctx: gqld::ResolverContext<'a>,
+    _ctx: gqld::ResolverContext<'a>,
 ) -> gql::Result<Option<FieldResultSQL>>
 {
     // println!("Handling field {} on type {}", sch_field.name, sch_type.name);
@@ -167,11 +166,11 @@ pub fn handler_field_object_reverse<'a>(
 }
 
 pub fn handler_filter_list<'a>(
-    db: &'static SqliteDB,
-    sch_type: &'static parsing::Type,
+    _db: &'static SqliteDB,
+    _sch_type: &'static parsing::Type,
     list: &[ObjectRefCached],
-    filter: QueryFilter<IDType>,
-    ctx: gqld::ResolverContext<'a>,
+    _filter: QueryFilter<IDType>,
+    _ctx: gqld::ResolverContext<'a>,
 ) -> gql::Result<Vec<ObjectRefCached>>
 {
     // TODO
@@ -182,7 +181,7 @@ pub fn handler_get_type<'a>(
     db: &'static SqliteDB,
     sch_obj: &'static parsing::Type,
     id: IDType,
-    ctx: gqld::ResolverContext<'a>
+    _ctx: gqld::ResolverContext<'a>
 ) -> gql::Result<Option<ObjectRefCached>>
 {
     println!("get{} for id={id}", sch_obj.name);
@@ -303,7 +302,7 @@ pub fn handler_update_type<'a>(
                 Some(gql::Value::Null) if field.typ.is_nn => {
                     return Err(gql::Error::new(format!("Non-nullable field '{}' trying to be set to null", field.name)));
                 },
-                Some(gql_val) => convert_gql_value2(gql_val, &field.typ.kind)?
+                Some(gql_val) => convert_gql_value(gql_val, &field.typ.kind)?
             };
 
             let col_name = format!("\"{}\"", field.internal_name);
@@ -378,7 +377,7 @@ pub fn handler_update_type<'a>(
             match gql_val {
                 None => continue,
                 Some(gql::Value::Null) => (),
-                Some(gql_val) => {
+                Some(_) => {
                     return Err(gql::Error::new(format!("Require null for remove field '{}'", field.name)));
                 }
             };
@@ -415,7 +414,7 @@ pub fn handler_update_type<'a>(
             match gql_val {
                 None => continue,
                 Some(gql::Value::Null) => (),
-                Some(gql_val) => {
+                Some(_) => {
                     return Err(gql::Error::new(format!("Require null for remove field '{}'", field.name)));
                 }
             };
@@ -464,18 +463,16 @@ pub fn handler_transaction_stop(db: &'static SqliteDB, successful: bool) -> gql:
 }
 
 fn empty_func(
-    db: &'static SqliteDB,
-    sch_field: &'static parsing::Field,
-    sch_typ: &'static parsing::Type,
-    api: &'static parsing::APIDefinition,
-    obj: &ObjectRefCached,
-    hook_args: &GQLIndexMap,
+    _db: &'static SqliteDB,
+    _sch_field: &'static parsing::Field,
+    _sch_typ: &'static parsing::Type,
+    _api: &'static parsing::APIDefinition,
+    _obj: &ObjectRefCached,
+    _hook_args: &GQLIndexMap,
     was_name: &str,
 ) -> gql::Result<Option<FieldResult<ObjectRefCached>>> {
     Err(gql::Error::from(format!("not allowing this: {}", was_name)))
 }
-
-// pub trait HookFnSH: Fn(&SqliteDB, &parsing::Field, &parsing::Type, &parsing::APIDefinition, &ObjectRefCached, gqld::ResolverContext) -> gql::Result<Option<FieldResult<ObjectRefCached>>> + Send + Sync + 'static {}
 
 pub type HookFn = dyn Fn(&'static SqliteDB, &'static parsing::Field, &'static parsing::Type, &'static parsing::APIDefinition, &ObjectRefCached, &GQLIndexMap) -> gql::Result<Option<FieldResult<ObjectRefCached>>> + Send + Sync + 'static;
 
@@ -514,17 +511,17 @@ impl DBInterface for SqliteDB {
                     // let x = Box::<dyn HookFnSH>::new(&empty_func);
                     Box::leak(x)
                 });
-            boxed = Box::new(move |obj, ctx| {
+            boxed = Box::new(move |obj, _ctx| {
                 hook(self, field, typ, &conf.api, obj, &dyn_resolver.args)
             });
         } else if let GQLValueType::Object(target_name) = &field.typ.kind {
             let target_typ = conf.api.types.get(target_name).unwrap();
             if let Some(src_field_name) = &field.incoming_source_name {
-                boxed = Box::new(move |obj, ctx| {
+                boxed = Box::new(move |obj, _ctx| {
                     handler_field_object_reverse(self, field, typ, target_typ, &src_field_name, obj)
                 });
             } else {
-                boxed = Box::new(move |obj, ctx| {
+                boxed = Box::new(move |obj, _ctx| {
                     handler_field_object(self, field, typ, target_typ, obj)
                 });
             }
@@ -543,7 +540,7 @@ impl DBInterface for SqliteDB {
     fn bind_handler_filter_list(
         &'static self,
         typ: &'static parsing::Type,
-        api: &'static parsing::APIDefinition
+        _api: &'static parsing::APIDefinition
     ) -> &'static FilterListHandlerFn<Self::IDType, Self::Ref>
     {
         let boxed: Box<FilterListHandlerFn<Self::IDType, Self::Ref>> = Box::new(move |list, filter, ctx| {
@@ -560,27 +557,27 @@ impl DBInterface for SqliteDB {
     }
 
     fn bind_handler_query_type(&'static self, typ: &'static parsing::Type, _api: &'static parsing::APIDefinition) -> &'static QueryTypeHandlerFn<Self::IDType, Self::Ref> {
-        let boxed: Box<QueryTypeHandlerFn<Self::IDType, Self::Ref>> = Box::new(move |filter, ctx| handler_query_type(self, typ, &filter));
+        let boxed: Box<QueryTypeHandlerFn<Self::IDType, Self::Ref>> = Box::new(move |filter, _ctx| handler_query_type(self, typ, &filter));
         Box::leak::<'static>(boxed)
     }
 
 
     fn bind_handler_add_type(&'static self, typ: &'static parsing::Type, api: &'static parsing::APIDefinition) -> &'static AddTypeHandlerFn<Self::Ref> {
-        let boxed: Box<AddTypeHandlerFn<Self::Ref>> = Box::new(move |obj, upsert, ctx| handler_add_type(self, typ, api, obj, upsert));
+        let boxed: Box<AddTypeHandlerFn<Self::Ref>> = Box::new(move |obj, upsert, _ctx| handler_add_type(self, typ, api, obj, upsert));
         Box::leak::<'static>(boxed)
     }
 
     fn bind_handler_update_type(&'static self, typ: &'static parsing::Type, api: &'static parsing::APIDefinition) -> &'static UpdateTypeHandlerFn<Self::IDType,Self::Ref> {
-        let boxed: Box<UpdateTypeHandlerFn<Self::IDType,Self::Ref>> = Box::new(move |filter: QueryFilter<Self::IDType>, arg_set: Option<ObjectHashMap>, arg_remove: Option<ObjectHashMap>, ctx| handler_update_type(self, typ, api, &filter, arg_set, arg_remove));
+        let boxed: Box<UpdateTypeHandlerFn<Self::IDType,Self::Ref>> = Box::new(move |filter: QueryFilter<Self::IDType>, arg_set: Option<ObjectHashMap>, arg_remove: Option<ObjectHashMap>, _ctx| handler_update_type(self, typ, api, &filter, arg_set, arg_remove));
         Box::leak::<'static>(boxed)
     }
 
-    fn bind_handler_transaction_start(&'static self, api: &'static parsing::APIDefinition) -> &'static TransactionStartHandlerFn {
+    fn bind_handler_transaction_start(&'static self, _api: &'static parsing::APIDefinition) -> &'static TransactionStartHandlerFn {
         let boxed: Box<TransactionStartHandlerFn> = Box::new(move || handler_transaction_start(self));
         Box::leak::<'static>(boxed)
     }
 
-    fn bind_handler_transaction_stop(&'static self, api: &'static parsing::APIDefinition) -> &'static TransactionStopHandlerFn {
+    fn bind_handler_transaction_stop(&'static self, _api: &'static parsing::APIDefinition) -> &'static TransactionStopHandlerFn {
         let boxed: Box<TransactionStopHandlerFn> = Box::new(move |successful| handler_transaction_stop(self, successful));
         Box::leak::<'static>(boxed)
     }

@@ -1,5 +1,3 @@
-use tokio::sync::mpsc::error::SendTimeoutError;
-
 use super::*;
 use crate::parsing::{
     self,
@@ -21,7 +19,7 @@ impl SqliteDB {
             }
         }
         for (_, typ) in &api.types {
-            let mut sql_gen = self.make_table_sql(typ, api, allow_migration)?;
+            let sql_gen = self.make_table_sql(typ, api, allow_migration)?;
             
             if !sql_gen.is_empty() {
                 println!("Executing: {}", sql_gen);
@@ -79,7 +77,7 @@ impl SqliteDB {
 
     fn make_table_sql_raw(&self, typ: &parsing::Type, api: &APIDefinition, migration: bool) -> ResultAll<String> {
         let mut field_strs = Vec::new();
-        field_strs.push(format!("id {id_sql_kind} NOT NULL PRIMARY KEY {id_sql_column_def}"));
+        field_strs.push(format!("id {ID_SQL_KIND} NOT NULL PRIMARY KEY {ID_SQL_COLUMN_DEF}"));
 
         for field in &typ.fields {
             if field.typ.is_list {
@@ -111,7 +109,7 @@ impl SqliteDB {
             typ.name.clone()
         };
 
-        let mut main_sql = format!("CREATE TABLE \"{table_name}\" (
+        let main_sql = format!("CREATE TABLE \"{table_name}\" (
 {fields}
 );",
                                fields=field_strs.join(",\n")
@@ -168,10 +166,10 @@ impl SqliteDB {
         };
 
         let mut lines: Vec<String> = Vec::new();
-        lines.push(format!("'source' {id_sql_kind} NOT NULL"));
+        lines.push(format!("'source' {ID_SQL_KIND} NOT NULL"));
 
         lines.push(match &target.kind {
-            GQLValueType::Object(_) => format!("'target' {id_sql_kind} NOT NULL"),
+            GQLValueType::Object(_) => format!("'target' {ID_SQL_KIND} NOT NULL"),
             x => format!("'value' {}", sqlite_type(x, api).unwrap()),
         });
         if !target.is_list {
@@ -203,7 +201,7 @@ impl SqliteDB {
         }
     }
 
-    fn make_enum_sql(&self, enm: &parsing::Enum, api: &APIDefinition, allow_migration: bool) -> ResultAll<String> {
+    fn make_enum_sql(&self, enm: &parsing::Enum, _api: &APIDefinition, _allow_migration: bool) -> ResultAll<String> {
         let mut full = format!("CREATE TABLE ENUM_{name} (item UNIQUE);", name=enm.name);
 
         let maybe_row = self.conn.prepare("SELECT * FROM sqlite_master WHERE type='table' AND name=:table;")?

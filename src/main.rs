@@ -10,7 +10,7 @@ use std::path::PathBuf;
 
 use std::collections::HashMap;
 
-use clap::{Parser, Args};
+use clap::Parser;
 #[derive(Debug, Parser)]
 #[command(name = "simplegql", about = "A GraphQL interface endpoint")]
 struct Cli {

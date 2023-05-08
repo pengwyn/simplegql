@@ -1,5 +1,4 @@
 use std::{fs, fmt, collections::{HashMap, HashSet, BTreeMap}};
-use async_graphql::{dynamic as gqld, indexmap::IndexMap};
 
 use crate::utils::*;
 use crate::handlers::{GQLValueType, GQLValueTypeAnnotated};
@@ -429,9 +428,9 @@ fn kind_from_str(s: &str, only_scalars: bool) -> GQLValueType {
         gqld::TypeRef::ID => GQLValueType::Integer,
         name => {
             if only_scalars {
-                panic!("Can't parse scalar kind {}", s);
+                panic!("Can't parse scalar kind {}", name);
             } else {
-                GQLValueType::NamedType(s.to_string())
+                GQLValueType::NamedType(name.to_string())
             }
         }
     }
