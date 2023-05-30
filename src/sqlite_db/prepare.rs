@@ -66,7 +66,7 @@ impl SqliteDB {
                 continue;
             }
 
-            let output = self.make_edge_table(&typ.name, &field.internal_name, &field.typ, api)?;
+            let output = self.make_edge_table(&typ.name, &field.internal_name, &field.typ, api, allow_migration)?;
             if let Some(x) = output {
                 ret_sqls.push(x);
             }
@@ -157,7 +157,7 @@ impl SqliteDB {
         Ok(all_sqls.join("\n"))
     }
 
-    fn make_edge_table(&self, src_typ_name: &str, field_name: &str, target: &GQLValueTypeAnnotated, api: &APIDefinition) -> ResultAll<Option<String>> {
+    fn make_edge_table(&self, src_typ_name: &str, field_name: &str, target: &GQLValueTypeAnnotated, api: &APIDefinition, migration: bool) -> ResultAll<Option<String>> {
         // TODO: Probably need to factor this out so handler code can read it.
         let table_name = match &target.kind {
             GQLValueType::Object(target_name) =>
@@ -165,22 +165,32 @@ impl SqliteDB {
             _ => field_table_name(src_typ_name, field_name),
         };
 
+        // Also build up columns list in case we are doing a migration
+        let mut cols: Vec<String> = Vec::new();
         let mut lines: Vec<String> = Vec::new();
         lines.push(format!("'source' {ID_SQL_KIND} NOT NULL"));
+        cols.push(String::from("source"));
 
-        lines.push(match &target.kind {
-            GQLValueType::Object(_) => format!("'target' {ID_SQL_KIND} NOT NULL"),
-            x => format!("'value' {}", sqlite_type(x, api).unwrap()),
-        });
+        match &target.kind {
+            GQLValueType::Object(_) => {
+                lines.push(format!("'target' {ID_SQL_KIND} NOT NULL"));
+                cols.push(String::from("target"));
+            },
+            x => {
+                lines.push(format!("'value' {}", sqlite_type(x, api).unwrap()));
+                cols.push(String::from("value"));
+            },
+        }
         if !target.is_list {
             lines.push("UNIQUE('source')".into());
         }
 
         let lines = lines.join(",\n");
         
-        let sql = format!("CREATE TABLE '{table_name}' (
+        let main_sql = format!(r###"CREATE TABLE "{table_name}" (
 {lines}
-);");
+)
+"###);
 
         let maybe_row = self.conn.prepare("SELECT * FROM sqlite_master WHERE type='table' AND name=:table;")?
             .iter()
@@ -190,14 +200,41 @@ impl SqliteDB {
 
         if let Some(row) = maybe_row {
             let prior: &str = row.read("sql");
-            if prior == &sql[..sql.len()-1] {
+            if prior == &main_sql[0..main_sql.len()-1] {
                 return Ok(None);
+            } else if migration {
+                let real_table_name = table_name;
+                let temp_table_name = format!("migration_{real_table_name}");
+
+                    // Note: there's a little discrepancy here, a semicolon is
+                    // required for the create table command, but we must not
+                    // compare with a semicolon above as sqlite doesn't store it
+                    // in the schema.
+                let main_sql = format!(r###"CREATE TABLE "{temp_table_name}" (
+{lines}
+);
+"###);
+                
+                let mut all_sqls = Vec::new();
+                all_sqls.push(String::from("PRAGMA foreign_keys=OFF;"));
+                all_sqls.push(main_sql);
+                
+                let col_str = cols.join(",");
+                all_sqls.push(
+                    format!("INSERT INTO {temp_table_name}({col_str}) SELECT {col_str} FROM {real_table_name};")
+                );
+
+                all_sqls.push(format!("DROP TABLE {};", real_table_name));
+                all_sqls.push(format!("ALTER TABLE {} RENAME TO {};", temp_table_name, real_table_name));
+                all_sqls.push(String::from("PRAGMA foreign_keys=ON;"));
+
+                return Ok(Some(all_sqls.join("\n")))
             } else {
-                println!("{}\n\n{}", prior, sql);
+                println!("{}\n\n{}", prior, main_sql);
                 panic!("Can't update an edge table");
             }
         } else {
-            return Ok(Some(sql))
+            return Ok(Some(main_sql))
         }
     }
 
